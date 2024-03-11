@@ -1,6 +1,7 @@
 package com.pfcti.train.controller;
 
 import java.util.List;
+import java.util.Set;
 import com.pfcti.train.service.IRoutesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,19 +20,67 @@ public class RouteController {
     @Autowired
     private IRoutesService routesService;
 
+    @GetMapping("/locations")
+    public ResponseEntity<Set<String>> getLocations() {
+        Set<String> locationNames = routesService.getLocationNames();
+        return new ResponseEntity<>(locationNames, HttpStatus.OK);
+    }
+
+    @GetMapping("/routes")
+    public ResponseEntity<List<String>> getRoutes() {
+        List<String> routeInfo = routesService.getRouteInfo();
+        return new ResponseEntity<>(routeInfo, HttpStatus.OK);
+    }
+
     @PostMapping("/addLocation/{name}")
     public void addLocation(@PathVariable String name) {
         routesService.addLocation(name);
     }
 
     @PostMapping("/addRoute/{origin}/{destination}/{distance}")
-    public void addRoute(@PathVariable String origin, @PathVariable String destination, @PathVariable int distance) {
-        routesService.addRoute(origin, destination, distance);
+    public ResponseEntity<String> addRoute(@PathVariable String origin, @PathVariable String destination, @PathVariable int distance) {
+        try {
+            routesService.addRoute(origin, destination, distance);
+            return ResponseEntity.ok("Route added successfully");
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     @GetMapping("/shortestRoute/{origin}/{destination}")
-    public int calculateShortestRoute(@PathVariable String origin, @PathVariable String destination) {
-        return routesService.calculateShortestRoute(origin, destination);
+    public ResponseEntity<Object> calculateShortestRoute(@PathVariable String origin, @PathVariable String destination) {
+        int shortestRouteDistance = routesService.calculateShortestRoute(origin, destination);
+
+        if (shortestRouteDistance == -1) {
+            String errorMessage = "Invalid origin";
+            return ResponseEntity.badRequest().body(errorMessage);
+        } else if (shortestRouteDistance == -2) {
+            String errorMessage = "Invalid destination";
+            return ResponseEntity.badRequest().body(errorMessage);
+        } else if (shortestRouteDistance == -3) {
+            String errorMessage = "No locations available";
+            return ResponseEntity.badRequest().body(errorMessage);
+        }
+
+        return ResponseEntity.ok(shortestRouteDistance);
+    }
+
+    @GetMapping("/countRoutesWithDistanceLessThan/{startLocation}/{endLocation}/{maxDistance}")
+    public ResponseEntity<Object> countRoutesWithDistanceLessThan(
+        @PathVariable String startLocation,
+        @PathVariable String endLocation,
+        @PathVariable int maxDistance) {
+
+        try {
+            int count = routesService.countRoutesWithDistanceLessThan(startLocation, endLocation, maxDistance);
+            if (count == -3) {
+                String errorMessage = "No locations available";
+                return ResponseEntity.badRequest().body(errorMessage);
+            }
+            return ResponseEntity.ok(count);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/calculateIndirectDistance")
@@ -61,7 +110,9 @@ public class RouteController {
             int distance = routesService.calculateRoute(origin, destination);
 
             if (distance == -1) {
-                return "NO SUCH ROUTE";
+                return "NO SUCH ROUTE"; // Maneja el caso en que no hay conexión directa
+            } else if (distance == -2) {
+                return "LOCATION NOT FOUND"; // Maneja el caso en que una ubicación no existe
             }
 
             totalDistance += distance;
@@ -100,6 +151,10 @@ public class RouteController {
         if (result == -2) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body("Ubicaciones no válidas");
+        }
+        if (result == -3) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body("DON PERMIT NEGATIVE NUMBER IN STOPS");
         }
 
         return ResponseEntity.ok(result);
