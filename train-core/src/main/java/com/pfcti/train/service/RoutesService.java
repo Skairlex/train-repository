@@ -150,6 +150,26 @@ public class RoutesService implements IRoutesService{
         return -1;
     }
 
+    public Object calculateRoutesOfList(List<String> locationNames){
+        int totalDistance = 0;
+        for (int i = 0; i < locationNames.size() - 1; i++) {
+            String origin = locationNames.get(i);
+            String destination = locationNames.get(i + 1);
+
+            // Cambiamos a calculateRoute para manejar el caso de "NO SUCH ROUTE"
+            int distance = calculateRoute(origin, destination);
+
+            if (distance == -1) {
+                return "NO SUCH ROUTE"; // Maneja el caso en que no hay conexión directa
+            } else if (distance == -2) {
+                return "LOCATION NOT FOUND"; // Maneja el caso en que una ubicación no existe
+            }
+
+            totalDistance += distance;
+        }
+        return totalDistance;
+    }
+
     @Override
     public int countTripsWithMaxStops(String startLocation, String endLocation, int maxStops) {
         Location start = locations.get(startLocation);

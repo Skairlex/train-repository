@@ -17,6 +17,11 @@
     ```bash
     ./gradlew bootRun
     ```
+2.1. Ejecutar test solicitados(archivo SolicitedTest):
+   ```bash
+   ./gradlew test
+   ```
+3. Importar el archivo TRAINS.postman_collection.json a postman y ejecutar servicios de acuerdo a la necesidad
 
 ## Descripción
 Este proyecto implementa una API para gestionar rutas y ubicaciones de trenes. Proporciona servicios para calcular distancias, contar rutas, encontrar la ruta más corta y realizar otras operaciones relacionadas con el transporte ferroviario.
