@@ -1,0 +1,6 @@
+rootProject.name = 'train'
+include 'train-services'
+include 'train-core'
+include 'train-client'
+include 'train-vo'
+
