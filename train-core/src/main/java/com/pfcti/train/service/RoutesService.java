@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -13,6 +14,8 @@ import com.pfcti.train.entity.Location;
 import com.pfcti.train.entity.Route;
 import com.pfcti.train.entity.RouteSearchState;
 import com.pfcti.train.entity.Step;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -20,20 +23,34 @@ import org.springframework.stereotype.Service;
 @Lazy
 @Service
 @Slf4j
+@Getter
+@Setter
 public class RoutesService implements IRoutesService{
 
-    private Map<String, Location> locations = new HashMap<>();
+    public Map<String, Location> locations = new HashMap<>();
     private Set<Route> routes = new HashSet<>();
 
     public void addLocation(String name) {
+        if (name == null || name.isEmpty()) {
+            throw new RuntimeException("Name cannot be null or empty");
+        }
         locations.put(name, new Location(name));
     }
 
     public void addRoute(String originName, String destinationName, int distance) {
+        if (locations.isEmpty()) {
+            throw new RuntimeException("No locations available");
+        }
+        if (distance < 0) {
+            throw new RuntimeException("Distance cannot be negative");
+        }
         Location origin = locations.get(originName);
         Location destination = locations.get(destinationName);
 
         if (origin != null && destination != null) {
+            if (origin.equals(destination)) {
+                throw new RuntimeException("Cannot add route from a location to itself");
+            }
             Route route = new Route(origin, destination, distance);
             routes.add(route);
             if(origin.getOutgoingRoutes()==null){
@@ -69,6 +86,9 @@ public class RoutesService implements IRoutesService{
         distanceMap.put(origin, 0);
         while (!visitedLocations.contains(destination)) {
             Location currentLocation = getClosestLocation(distanceMap, visitedLocations);
+            if(currentLocation.getOutgoingRoutes() == null){
+                origin.setOutgoingRoutes(new ArrayList<>());
+            }
             visitedLocations.add(currentLocation);
 
             for (Route route : currentLocation.getOutgoingRoutes()) {
@@ -86,7 +106,9 @@ public class RoutesService implements IRoutesService{
 
     private int calculateShortestRouteForSameLocation(Location origin, Location destination) {
         int shortestDistance = Integer.MAX_VALUE;
-
+        if (origin.getOutgoingRoutes()==null){
+            origin.setOutgoingRoutes(new ArrayList<>());
+        }
         for (Route routeFromOrigin : origin.getOutgoingRoutes()) {
             Location viaLocation = routeFromOrigin.getDestination();
 
@@ -99,12 +121,25 @@ public class RoutesService implements IRoutesService{
         }
 
         // Si no se encuentra ninguna ruta válida, devolver -1 o cualquier valor especial
-        return shortestDistance == Integer.MAX_VALUE ? -1 : shortestDistance;
+        return shortestDistance == Integer.MAX_VALUE ? 0 : shortestDistance;
     }
 
     @Override
     public int calculateRoute(String origin, String destination) {
-        // Verifica si existe una conexión directa entre origin y destination
+        // Verifica si las ubicaciones de origen y destino existen
+        Location originLocation = locations.get(origin);
+        Location destinationLocation = locations.get(destination);
+
+        if (originLocation == null || destinationLocation == null) {
+            // Ubicación de origen o destino no encontrada, devuelve un valor que indique esto
+            return -2; // Por ejemplo, -2 podría indicar ubicación no encontrada
+        }
+
+        // Verifica si las ubicaciones de origen y destino son idénticas
+        if (origin.equals(destination)) {
+            return 0; // Ubicaciones idénticas, la distancia es 0
+        }
+
         for (Route route : routes) {
             if (route.getOrigin().getName().equals(origin) && route.getDestination().getName().equals(destination)) {
                 return route.getDistance();
@@ -137,7 +172,10 @@ public class RoutesService implements IRoutesService{
         Location end = locations.get(endLocation);
 
         if (start == null || end == null) {
-            return -2; // Ubicaciones no válidas
+            return -2;
+        }
+        if (exactStops<0) {
+            return -3;
         }
 
         return countTripsWithExactStopsDFS(start, end, exactStops, 0);
@@ -150,7 +188,7 @@ public class RoutesService implements IRoutesService{
         Location end = locations.get(endLocation);
 
         if (start == null || end == null) {
-            throw new RuntimeException("Invalid start or end location");
+            return -3;
         }
 
         LinkedList<RouteSearchState> queue = new LinkedList<>();
@@ -177,6 +215,29 @@ public class RoutesService implements IRoutesService{
         }
 
         return routesCount;
+    }
+
+    @Override
+    public Set<String> getLocationNames() {
+        return locations.keySet();
+    }
+
+    @Override
+    public List<String> getRouteInfo() {
+        List<String> routeInfoList = new ArrayList<>();
+
+        for (Route route : routes) {
+            String routeInfo = String.format(
+                "Origin: %s, Destination: %s, Distance: %d",
+                route.getOrigin().getName(),
+                route.getDestination().getName(),
+                route.getDistance()
+            );
+            routeInfoList.add(routeInfo);
+        }
+
+        return routeInfoList;
+
     }
 
 
