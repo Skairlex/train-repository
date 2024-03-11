@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 import com.pfcti.train.entity.Location;
 import com.pfcti.train.entity.Route;
+import com.pfcti.train.entity.RouteSearchState;
 import com.pfcti.train.entity.Step;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -45,11 +46,21 @@ public class RoutesService implements IRoutesService{
     }
 
     public int calculateShortestRoute(String originName, String destinationName) {
+        if (locations.isEmpty()) {
+            return -3; // -3 indica que no hay ubicaciones disponibles
+        }
         Location origin = locations.get(originName);
         Location destination = locations.get(destinationName);
         if (origin == null || destination == null) {
-            throw new RuntimeException("Invalid origin or destination");
+            return origin == null ? -1 : -2; // -1 indica origen inválido, -2 indica destino inválido
         }
+        // Verificar si el origen y el destino son los mismos
+        if (originName.equals(destinationName)) {
+            return calculateShortestRouteForSameLocation(origin, destination);
+        }
+
+
+        //disktra
         Map<Location, Integer> distanceMap = new HashMap<>();
         Set<Location> visitedLocations = new HashSet<>();
         for (Location location : locations.values()) {
@@ -71,6 +82,24 @@ public class RoutesService implements IRoutesService{
         }
 
         return distanceMap.get(destination);
+    }
+
+    private int calculateShortestRouteForSameLocation(Location origin, Location destination) {
+        int shortestDistance = Integer.MAX_VALUE;
+
+        for (Route routeFromOrigin : origin.getOutgoingRoutes()) {
+            Location viaLocation = routeFromOrigin.getDestination();
+
+            if (!viaLocation.equals(destination)) {
+                int distanceVia = routeFromOrigin.getDistance()
+                    + calculateShortestRoute(viaLocation.getName(), destination.getName());
+
+                shortestDistance = Math.min(shortestDistance, distanceVia);
+            }
+        }
+
+        // Si no se encuentra ninguna ruta válida, devolver -1 o cualquier valor especial
+        return shortestDistance == Integer.MAX_VALUE ? -1 : shortestDistance;
     }
 
     @Override
@@ -113,6 +142,43 @@ public class RoutesService implements IRoutesService{
 
         return countTripsWithExactStopsDFS(start, end, exactStops, 0);
     }
+
+    @Override
+    public int countRoutesWithDistanceLessThan(String startLocation, String endLocation,
+        int maxDistance) {
+        Location start = locations.get(startLocation);
+        Location end = locations.get(endLocation);
+
+        if (start == null || end == null) {
+            throw new RuntimeException("Invalid start or end location");
+        }
+
+        LinkedList<RouteSearchState> queue = new LinkedList<>();
+        queue.add(new RouteSearchState(start, 0));
+
+        int routesCount = 0;
+
+        while (!queue.isEmpty()) {
+            RouteSearchState currentState = queue.poll();
+            Location currentLocation = currentState.getLocation();
+            int currentDistance = currentState.getDistance();
+
+            for (Route route : currentLocation.getOutgoingRoutes()) {
+                int newDistance = currentDistance + route.getDistance();
+
+                if (newDistance < maxDistance) {
+                    queue.add(new RouteSearchState(route.getDestination(), newDistance));
+
+                    if (route.getDestination().equals(end)) {
+                        routesCount++;
+                    }
+                }
+            }
+        }
+
+        return routesCount;
+    }
+
 
     private int countTripsWithExactStopsDFS(Location current, Location end, int exactStops, int stops) {
         if (stops == exactStops && current.equals(end)) {

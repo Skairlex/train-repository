@@ -30,8 +30,35 @@ public class RouteController {
     }
 
     @GetMapping("/shortestRoute/{origin}/{destination}")
-    public int calculateShortestRoute(@PathVariable String origin, @PathVariable String destination) {
-        return routesService.calculateShortestRoute(origin, destination);
+    public ResponseEntity<Object> calculateShortestRoute(@PathVariable String origin, @PathVariable String destination) {
+        int shortestRouteDistance = routesService.calculateShortestRoute(origin, destination);
+
+        if (shortestRouteDistance == -1) {
+            String errorMessage = "Invalid origin";
+            return ResponseEntity.badRequest().body(errorMessage);
+        } else if (shortestRouteDistance == -2) {
+            String errorMessage = "Invalid destination";
+            return ResponseEntity.badRequest().body(errorMessage);
+        } else if (shortestRouteDistance == -3) {
+            String errorMessage = "No locations available";
+            return ResponseEntity.badRequest().body(errorMessage);
+        }
+
+        return ResponseEntity.ok(shortestRouteDistance);
+    }
+
+    @GetMapping("/countRoutesWithDistanceLessThan/{startLocation}/{endLocation}/{maxDistance}")
+    public ResponseEntity<Object> countRoutesWithDistanceLessThan(
+        @PathVariable String startLocation,
+        @PathVariable String endLocation,
+        @PathVariable int maxDistance) {
+
+        try {
+            int count = routesService.countRoutesWithDistanceLessThan(startLocation, endLocation, maxDistance);
+            return ResponseEntity.ok(count);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @PostMapping("/calculateIndirectDistance")

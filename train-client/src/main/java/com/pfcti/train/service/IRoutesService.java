@@ -13,4 +13,6 @@ public interface IRoutesService {
     int countTripsWithMaxStops(String startLocation, String endLocation, int maxStops);
 
     int countTripsWithExactStops(String startLocation, String endLocation, int exactStops);
+
+    int countRoutesWithDistanceLessThan(String startLocation, String endLocation, int maxDistance);
 }
